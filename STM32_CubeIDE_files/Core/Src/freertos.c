@@ -185,7 +185,8 @@ void TM1650_task_init(void *argument)
 	/// RANGE_1 - integers in the range(-999 , 999)
 	/// RANGE_2, - positive and negative float numbers  (-99.9 , 99.9)
 	/// RANGE_3, - positive and negative float numbers  (-9.99 , 9.99)
-	// 	RANGE_4, - positive float numbers (0.0 , 999.9)
+	//// RANGE_4, - positive float numbers (0.0 , 999.9)
+	/// RANGE_5 - positive float numbers (0.000, 9.999)
 
 
 	TM1650_Init(&htm1, &hi2c1, 4, RANGE_0, ZEROS); /// RAW 12 bit ADC values are

@@ -10,6 +10,7 @@ The driver supports common numeric display ranges:
 - (-99.9 : 99.9) - signed float, 1 decimal place
 - (-9.99 : 9.99) - signed float, 2 decimal places
 - (0.0 : 999.9) - unsigned float, 1 decimal place
+- (0.000 : 9.999) - unsigned float, 3 decimal places
 
 Additional features:
 

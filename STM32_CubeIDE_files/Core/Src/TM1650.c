@@ -2,7 +2,7 @@
  * TM1650.c
  *
  *  Created on: Sep 3, 2025
- *  Modified on: Jan 20, 2026
+ *  Modified on: Nov 9, 2026
  *
  *      Author: Marcin Mikula
  *      github.com/Marmikuu
@@ -77,7 +77,7 @@ void TM1650_SetBrightness(TM1650_HandleTypeDef *htm, uint8_t brightness_lvl)  //
 
 	uint8_t command;
 	command = br_lvl_address | DISP_MODE_ON;
-	HAL_I2C_Master_Transmit(htm->hi2c, SYS_COMMAND, &command , 1, 10);
+	HAL_I2C_Master_Transmit(htm->hi2c, SYS_COMMAND, &command , 1, 5);
 }
 
 
@@ -100,6 +100,10 @@ void TM1650_SetRange(TM1650_HandleTypeDef *htm, uint8_t range_new)  ///// set di
 	case 4:
 		(htm->range) = RANGE_4;
 		break;
+	case 5:
+		(htm->range) = RANGE_5;
+		break;
+
 	default:
 		(htm->range) = RANGE_0;
 	}
@@ -137,45 +141,39 @@ void out_of_range_show(void)
 
 uint8_t is_number_out_of_range(range_mode range, int32_t int_number) //// in case the number is out of range, just show '----'
 {
+	int32_t max_value;
 
-	if (range == RANGE_0)
-	{
-		if ((int_number > 9999) || (int_number < 0)) /// check if the number is out of range
-		{
-			out_of_range_show();
-			return 1;
-		}
-		else
-		{
-			return 0;
-		}
-	}
+	    switch (range)
+	    {
+	        case RANGE_0: // 0 : 9999
+	        case RANGE_4: // 0.0 : 999.9
+	        case RANGE_5: // 0.000 : 9.999
 
-	else if ( range == RANGE_4)
-	{
-		if(int_number < 0 || int_number > 9999)
-		{
-			out_of_range_show();
-			return 1;
-		}
-		else
-		{
-			return 0;
-		}
+	        	max_value = 9999;
 
-	}
-	else
-	{
-		if ((int_number > 999) || (int_number<-999))
+	            break;
+
+	        case RANGE_1: /// -999 : 999
+	        case RANGE_2: // -99.9 : 99.9
+	        case RANGE_3: // -9.99 : 9.99
+
+	        	max_value = 999;
+
+	        	break;
+
+	        default:
+	            return 1; /// if unknown, assume number is out of range
+	            break;
+	    }
+
+	    if ((int_number < 0) || (int_number > max_value))
 		{
-			out_of_range_show();
-			return 1;
+	    	return 1;
 		}
-		else
-		{
-			return 0;
-		}
-	}
+	    else
+	    {
+	    	return 0;
+	    }
 
 
 }
@@ -183,35 +181,16 @@ uint8_t is_number_out_of_range(range_mode range, int32_t int_number) //// in cas
 
 
 ///// left digit - pos 4 / right pos - 1
-uint8_t convert_to_digit_09(int32_t number, uint8_t digit_pos, range_mode range) //// 4-digit number
+uint8_t convert_to_digit_09(int32_t number, uint8_t digit_pos) //// 4-digit number
 {
 
-	if (range == RANGE_0 || range == RANGE_4)
+	if (number < 0 || digit_pos < 1 || digit_pos > 4) //// error
 	{
-		if ( ( ((number >= 0) && (number < 10000)) && ((digit_pos >=1) && (digit_pos <= 4)) ) )
-		{
-		uint16_t digit;
-		digit = abs(( (number/ pow100(digit_pos-1) ) % 10));
-		return digit;
-		}
-		else
-		{
 			return 0;
-		}
-
 	}
 	else
 	{
-		if ( ( ((number > -1000) && (number < 1000)) && ((digit_pos >=1) && (digit_pos <= 4)) ) )
-		{
-		uint16_t digit;
-		digit = abs(( (number/ pow100(digit_pos-1) ) % 10));
-		return digit;
-		}
-		else
-		{
-			return 0;
-		}
+		return 	((number/ pow100(digit_pos-1) ) % 10);
 	}
 
 }
@@ -261,7 +240,7 @@ void TM1650_show_next_digit(TM1650_HandleTypeDef *htm)
 	{
 		uint8_t temp_digit = buffer[current_digit];
 
-			HAL_I2C_Master_Transmit(htm->hi2c, num_pos[3-current_digit], &temp_digit,1, 50);
+			HAL_I2C_Master_Transmit(htm->hi2c, num_pos[3-current_digit], &temp_digit,1, 5);
 			TM1650_current_digit_update();
 	}
 }
@@ -278,7 +257,7 @@ void TM1650_update_buffer(TM1650_HandleTypeDef *htm,int32_t int_number,uint8_t p
 {
 		for(int i = 0; i<=3; i++)
 		{
-			uint8_t temp_buffer = convert_to_digit_09(int_number,i+1,htm->range);
+			uint8_t temp_buffer = convert_to_digit_09(int_number,i+1);
 			buffer[i] = convert_09_number_to_I2C(temp_buffer,point_pos,i,htm->range);
 		}
 }
@@ -290,7 +269,14 @@ void TM1650_prepare_number(TM1650_HandleTypeDef *htm, float number)
 	int32_t int_number =0;
 
 
-	if ((htm->range == RANGE_4 || htm->range == RANGE_0) && number <0)
+	if (!(number > -100000.0f && number < 100000.0f))   ///// exception for NaN
+	{
+	    out_of_range_show();
+	    return;
+	}
+
+
+	if ((htm->range == RANGE_4 || htm->range == RANGE_0 || htm->range == RANGE_5) && number < 0)
 	{
 	    out_of_range_show();
 	    return;
@@ -299,7 +285,7 @@ void TM1650_prepare_number(TM1650_HandleTypeDef *htm, float number)
 	if ((number < 0.0f))
 	{
 		sign = 1;
-		number = fabs(number);
+		number = fabsf(number);
 	}
 	else
 	{
@@ -310,33 +296,54 @@ void TM1650_prepare_number(TM1650_HandleTypeDef *htm, float number)
 		switch(htm->range)
 		{
 
+
+
+
 		case RANGE_0:  /// (0:9999)
 		case RANGE_1: /// (-999:999)
 
-			int_number = (int32_t)number; /////// conversion to int16_t
+			int_number = (int32_t)(number + 0.5f); /////// conversion to int16_t
+
 			break;
 
 		case RANGE_2: //// (-99.9 : 99.9)
 			point_pos = 1;
-			int_number = (int32_t)(number * 10 + (number >= 0 ? 0.5f : -0.5f));
+			int_number = (int32_t)(number * 10.0f + 0.5f);
+
+
 			break;
 
 		case RANGE_3: /// (-9.99 : 9.99)
 			point_pos = 2;
 
-			int_number = (int32_t)(number * 100 + (number >= 0 ? 0.5f : -0.5f));
+			int_number = (int32_t)(number * 100.0f + 0.5f);
 			break;
 
-		case RANGE_4: /// (0.00 : 999.9)
+		case RANGE_4: /// (0.0 : 999.9)
 
 			point_pos = 1;
 
-			int_number = (int32_t)(number * 10 + 0.5f);
+			int_number = (int32_t)(number * 10.0f + 0.5f);
+			break;
+
+		case RANGE_5: /// 0.000 : 9.999
+
+			point_pos = 3;
+			int_number  = (int32_t)(number * 1000.0f + 0.5f);
 			break;
 		}
 
+
+		if (int_number == 0)
+			{
+			sign = 0;
+			}
+
+
 		if (is_number_out_of_range(htm->range, int_number) == 1) /// if the number is OUT OF range
-		{}
+		{
+		    out_of_range_show();
+		}
 		else
 		{
 			TM1650_update_buffer(htm,int_number,point_pos);

@@ -43,15 +43,8 @@
 #define WORKING_MODE_NORMAL 0x00
 #define WORKING_MODE_STANBY 0x04
 
-// Init return values
 
-/// RANGE_0, - positive integers in the range(0-9999)
-/// RANGE_1 - integers in the range(-999,999)
-/// RANGE_2, - positive and negative float numbers  (-99.9 : 999.9)
-/// RANGE_3, - positive and negative float numbers  (-9.99:9.99)
-
-
-typedef enum {RANGE_0,RANGE_1,RANGE_2, RANGE_3, RANGE_4} range_mode;
+typedef enum {RANGE_0,RANGE_1,RANGE_2, RANGE_3, RANGE_4, RANGE_5} range_mode;
 
 typedef enum {ON, OFF} disp_mode;
 typedef enum {BLANK, ZEROS} preceding_mode;
@@ -78,21 +71,28 @@ void TM1650_SetBrightness(TM1650_HandleTypeDef *htm, uint8_t brightness_lvl);
 
 //// Range////////////
 
-//range values :  0 , 1 ,2 , 3 , 4
+//range values :  0 , 1 ,2 , 3 , 4, 5
 /// RANGE_0, - positive integers in the range(0 , 9999)
 /// RANGE_1 - integers in the range(-999 , 999)
 /// RANGE_2, - positive and negative float numbers  (-99.9 , 99.9)
 /// RANGE_3, - positive and negative float numbers  (-9.99 , 9.99)
 // 	RANGE_4, - positive float numbers (0.0 , 999.9)
+// 	RANGE_5, - positive float numbers (0.000 , 9.999)
+
 
 void TM1650_SetRange(TM1650_HandleTypeDef *htm, uint8_t range);
 
 void TM1650_show_next_digit(TM1650_HandleTypeDef *htm);
+
+uint8_t convert_to_digit_09(int32_t number, uint8_t digit_pos);
+
+uint8_t convert_09_number_to_I2C(uint8_t digit, uint8_t point_pos, uint8_t counter,range_mode range);
 
 void TM1650_prepare_number(TM1650_HandleTypeDef *htm, float number);
 
 void TM1650_current_digit_update(void);
 
 void TM1650_show(TM1650_HandleTypeDef *htm, float number);
+
 
 #endif /* INC_TM1650_H_ */
